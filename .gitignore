@@ -1,0 +1,16 @@
+.DS_Store
+public/.DS_Store
+public/stylesheets/*
+.bundle
+.kdev4
+bin/*
+log/*.log
+public/assets
+rerun.txt
+.sass-cache
+tmp/*
+vendor/bundle
+*.swp
+.rspec
+.rvmrc
+.sass-cache/*
