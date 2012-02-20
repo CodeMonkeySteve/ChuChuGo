@@ -5,9 +5,13 @@ gem 'i18n'
 gem 'json'
 gem 'rack'
 gem 'thin'
+gem 'rack-fiber_pool', require: 'rack/fiber_pool'
 
 gem 'mongo'
 gem 'bson_ext'
+
+gem 'sprockets'
+gem 'coffee-script'
 
 group :development do
   gem 'guard'

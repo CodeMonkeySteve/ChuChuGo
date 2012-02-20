@@ -1,21 +1,21 @@
 require 'rack_ext'
 require 'chuchugo/conversions'
+require 'mongo'
 
 module ChuChuGo
 
 class Server
-  attr_reader :app, :path, :db, :opts
+  attr_reader :db, :opts
 
-  def initialize( app, path, db, opts = {} )
-    @app, @path, @db, @opts = app, path, db, opts
-    @path = "/#{@path}"  unless @path[0] == '/'
+  def initialize( db, opts = {} )
+    @db, @opts = db, opts
   end
 
   def call( env )
     @env, req = env, Rack::Request.new(env)
     return [400, {}, ["Bad Request"]] unless req.accept.include?('application/json')
 
-    if %r(#{@path}/(\w+)/(find|insert|update|remove)/?$) =~ req.path_info
+    if %r(^/(\w+)/(find|insert|update|remove)/?$) =~ req.path_info
       coll_name, op = $1, $2
       unless (req.content_type == 'application/json') && (args = ExtJSON.parse(req.body.read))
         return [400, {}, ["Bad Request"]]

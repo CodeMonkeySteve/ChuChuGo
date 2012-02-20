@@ -1,12 +1,29 @@
 require 'bundler'
+env = ENV['RACK_ENV'].to_sym || :development
 
-env = ENV['RACK_ENV'].to_sym
-Bundler.setup :default, env
-Bundler.setup "development_#{/darwin|linux|win32/.match(RUBY_PLATFORM)[0]}"  if env == :development
+require 'bundler'
+Bundler.setup
+Bundler.require
 
-require File.dirname(__FILE__)+'/lib/chuchugo'
+$: << File.dirname(__FILE__)+'/lib'
 
-db = Mongo::Connection.from_uri('mongodb://localhost').db('chuchugo-dev')
-use ChuChuGo::Server, db, path: '/db'
+map '/assets' do
+  require 'sprockets'
+  environment = Sprockets::Environment.new
+  environment.append_path 'assets/javascripts'
+  environment.append_path 'assets/stylesheets'
+  run environment
+end
 
-run proc { [404, {}, [] ] }
+map '/db' do
+  use Rack::Reloader  # debug
+  use Rack::FiberPool
+
+  require 'chuchugo'
+  db = Mongo::Connection.from_uri('mongodb://localhost').db('chuchugo-dev')
+  run ChuChuGo::Server.new(db)
+end
+
+map '/' do
+  run Rack::File.new('example/index.html')
+end

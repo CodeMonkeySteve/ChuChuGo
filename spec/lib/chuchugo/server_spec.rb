@@ -5,13 +5,13 @@ include ChuChuGo
 
 describe Server do
   include Rack::Test::Methods
-  def app()   @app ||= Server.new(nil, '/db', ChuChuGo.database)  end
+  def app()   @app ||= Server.new(ChuChuGo.database)  end
 
   before do
     @app = nil ; app
     header 'ACCEPT', 'application/json'
     @coll = app.db['test']
-    @url = "#{app.path}/#{@coll.name}"
+    @url = @coll.name
   end
 
   it "#find" do
