@@ -1,11 +1,20 @@
+require 'bson'
 require 'active_support/json'
+
+# Extended JSON conversions (see http://www.mongodb.org/display/DOCS/Mongo+Extended+JSON)
+#   * Binary:    TODO
+#   * Timestamp: TODO
+#   * Date:      done
+#   * Regex:     done
+#   * ObjectId:  done
+#   * DBRef:     done
 
 module ExtJSON
   Conversions = []
 
-  def self.parse(ejson)
-    json = JSON.parse(ejson)
-    json.class.from_ejson(json)
+  def self.parse(data)
+    ejson = JSON.parse(data)
+    ejson.class.from_ejson(ejson)
   end
 end
 
@@ -18,17 +27,51 @@ class Object
     self.as_ejson.to_json
   end
 
-  def self.from_ejson(json)
-    json
+  def self.from_ejson(ejson)
+    ejson
   end
+end
+
+class Time
+  def as_ejson
+    { '$date' => (self.to_f * 1000.0).to_i }
+  end
+
+  def self.from_ejson(ejson)
+    (ejson.keys == %w($date)) && Time.at(ejson['$date'] / 1000.0)
+  end
+
+  ExtJSON::Conversions << self
+end
+
+class Regexp
+  def as_ejson
+    opts = ''
+    opts << 'i'  if self.options & Regexp::IGNORECASE
+    opts << 'm'  if self.options & Regexp::MULTILINE
+    { '$regex' => self.source, '$options' => opts }
+  end
+
+  def self.from_ejson(ejson)
+    if ejson.keys.sort == %w($options $regex)
+      opts = 0
+      opts |= Regexp::IGNORECASE  if ejson['$options'].include?('i')
+      opts |= Regexp::MULTILINE   if ejson['$options'].include?('m')
+      Regexp.new(ejson['$regex'], opts)
+    end
+  end
+
+  ExtJSON::Conversions << self
 end
 
 class BSON::ObjectId
   alias :as_ejson :as_json
 
-  def self.from_ejson(json)
-    (json.keys == %w($oid)) && BSON::ObjectId(json['$oid'])
+  def self.from_ejson(ejson)
+    (ejson.keys == %w($oid)) && BSON::ObjectId(ejson['$oid'])
   end
+
+  ExtJSON::Conversions << self
 end
 
 class BSON::DBRef
@@ -38,23 +81,11 @@ class BSON::DBRef
   alias_method :==, :eql?
 
   def as_ejson
-    { "$ns" => @namespace, "$id" => @object_id.to_s }
+    { '$ns' => @namespace, '$id' => @object_id.to_s }
   end
 
-  def self.from_ejson(json)
-    (json.keys.sort == %w($id $ns)) && BSON::DBRef.new( json['$ns'], BSON::ObjectId(json['$id']) )
-  end
-
-  ExtJSON::Conversions << self
-end
-
-class Time
-  def as_ejson
-    { "$date" => (self.to_f * 1000.0).to_i }
-  end
-
-  def self.from_ejson(json)
-    (json.keys == %w($date)) && Time.at(json['$date'] / 1000.0)
+  def self.from_ejson(ejson)
+    (ejson.keys.sort == %w($id $ns)) && BSON::DBRef.new( ejson['$ns'], BSON::ObjectId(ejson['$id']) )
   end
 
   ExtJSON::Conversions << self
@@ -65,8 +96,8 @@ class Array
     self.map { |el| el.as_ejson }
   end
 
-  def self.from_ejson(json)
-    json.map do |val|
+  def self.from_ejson(ejson)
+    ejson.map do |val|
       val.class.respond_to?(:from_ejson) ? val.class.from_ejson(val) : val
     end
   end
@@ -79,13 +110,13 @@ class Hash
     end ]
   end
 
-  def self.from_ejson(json)
+  def self.from_ejson(ejson)
     conv_val = nil
-    if json.is_a?(Hash) && ExtJSON::Conversions.any? { |conv|  conv_val = conv.from_ejson(json) }
+    if ejson.is_a?(Hash) && ExtJSON::Conversions.any? { |conv|  conv_val = conv.from_ejson(ejson) }
       return conv_val
     end
 
-    Hash[ json.map do |key, val|
+    Hash[ ejson.map do |key, val|
       if val.class.respond_to?(:from_ejson) && (conv_val = val.class.from_ejson(val))
         val = conv_val
       end

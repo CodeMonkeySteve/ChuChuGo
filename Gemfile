@@ -16,6 +16,7 @@ gem 'coffee-script'
 group :development do
   gem 'guard'
   gem 'guard-rspec'
+  gem 'jasmine'
 
   gem 'linecache19', git: 'git://github.com/mark-moseley/linecache'
   gem 'ruby-debug-base19x',  '~> 0.11.30.pre4'
