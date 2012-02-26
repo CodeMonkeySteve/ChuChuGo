@@ -1,5 +1,5 @@
 class BSON.ObjectId
-  BSON.Conversions.push(this)
+  BSON.Conversions.unshift(this)  # most common, should go first
 
   @machineID = (
     if window.localStorage? && (id = window.localStorage.getItem('BSON.MachineID'))?
@@ -68,7 +68,7 @@ class BSON.ObjectId
       '000000'.substr(0, 6 - inc.length) + inc
 
 
-  toEJSON: ->
-    $oid: @toString()
+  @toEJSON: (id) ->
+    $oid: id.toString()
   @fromEJSON: (ejson) ->
     _.isEqual( _.keys(ejson), ['$oid'] ) && new ObjectId(ejson['$oid'])

@@ -3,9 +3,11 @@ source :rubygems
 gem 'activesupport', require: %w(active_support active_support/core_ext)
 gem 'i18n'
 gem 'json'
+
+gem 'faye-websocket', require: 'faye/websocket'
 gem 'rack'
-gem 'thin'
 gem 'rack-fiber_pool', require: 'rack/fiber_pool'
+gem 'thin'
 
 gem 'mongo'
 gem 'bson_ext'

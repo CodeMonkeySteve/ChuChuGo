@@ -1,41 +1,30 @@
-//= require 'underscore-1.3.1'
-//= require 'backbone-0.9.0'
-//= require 'bson'
+//= require 'underscore'
+//= require 'backbone'
+
+//= require 'bson/bson.js.coffee'
 //= require_self
+//= require_tree ./chuchugo
 
 @ChuChuGo = {}
 
-class ChuChuGo.Database
-  constructor: (url) ->
-    @url = url
-    @initialize.apply(this, arguments)
+String::copy = (n) ->
+  str = ''
+  str += this  while n-- > 0
+  str
 
-  initialize: ->
+Object::inspect = (ind = 0) ->
+  str = @toString()
+  if (str == '[object Object]') && (keys = _.keys(this)).length
+    if keys.length == 1
+      "{#{keys[0].inspect()}: #{@[keys[0]].inspect()}"
+    else
+      s = '  '.copy(++ind)
+      "{\n" +
+        ("#{s}#{key.inspect()}: #{@[key].inspect(ind + 1)}"  for key in _.keys(this)).join(",\n") +
+      "#{'  '.copy(ind)}\n}"
+  else
+    str
 
+Array::inspect = ->
+  (val.inspect()  for val in this).join(', ')
 
-class ChuChuGo.Collection
-  constructor: (name, database) ->
-    @name = name
-    @db = database
-    @initialize.apply(this, arguments)
-
-  initialize: ->
-
-  find: (query, fields, success) ->
-    opts = {}
-    if fields?
-      opts.fields = if _.isArray(fields)  then {include: fields}  else fields
-
-    @cmd 'find', [query, opts]
-
-  cmd: (op, args..., opts = {}) ->
-    jQuery.ajax
-      url: "#{@db.url}/#{@name}/#{op}"
-      dataType: 'json'
-      success = (data, status, xhr) ->
-        resp = ExtJSON.parse(data)
-
-class ChuChuGo.Model
-
-class ChuChuGo.DataView
-  

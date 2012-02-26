@@ -1,5 +1,5 @@
 //= require_self
-//= require 'bson/object_id'
+//= require_directory .
 
 @BSON =
   Conversions: [Date, RegExp]
@@ -8,45 +8,48 @@
     ejson = JSON.parse(data)
     ejson.constructor.fromEJSON(ejson)
 
-Object::toEJSON = ->
+Object.toEJSON = (obj) ->
   ejson = {}
-  for key, val of this
+  for key, val of obj
     unless _.isFunction(val)
-      ejson[key] = if _.isObject(val) && _.isFunction(val.toEJSON)  then val.toEJSON()  else val
+      type = val.constructor
+      ejson[key] = if _.isObject(val) && _.isFunction(type.toEJSON)  then type.toEJSON(val)  else val
   ejson
-Object.fromEJSON = (ejson)->
+Object.fromEJSON = (ejson) ->
   convVal = null
   if _.isObject(ejson) && _.any( BSON.Conversions, (conv) -> convVal = conv.fromEJSON(ejson) )
     return convVal
   for key, val of ejson
-    if _.isFunction(ejson.constructor.fromEJSON) && (convVal = ejson.constructor.fromEJSON(val))
+    type = val.constructor
+    if _.isFunction(type.fromEJSON) && (convVal = type.fromEJSON(val))
       ejson[key] = convVal
   ejson
 
-Array::toEJSON = ->
-  _.map this, (val) ->
-    if _.isObject(val) && _.isFunction(val.toEJSON)  then val.toEJSON()  else val
-Array.fromEJSON = (ejson)->
+Array.toEJSON = (arr) ->
+  _.map arr, (val) ->
+    type = val.constructor
+    if _.isObject(val) && _.isFunction(type.toEJSON)  then type.toEJSON(val)  else val
+Array.fromEJSON = (ejson) ->
   _.map ejson, (val) ->
     convVal = null
-    if _.isObject(val) && _.any( BSON.Conversions, (conv) -> convVal = conv.fromEJSON(val) )
+    if (_.isObject(val) && _.any( BSON.Conversions, (conv) -> convVal = conv.fromEJSON(val) )) ||
+       (_.isFunction(val.constructor.fromEJSON) && (convVal = val.constructor.fromEJSON(val)))
       convVal
     else
       val
 
-RegExp::toEJSON = ->
+RegExp.toEJSON = (re) ->
   opts = ''
-  opts += 'i'  if @ignoreCase
-  opts += 'm'  if @multiline
-  $regex: @source, $options: opts
+  opts += 'i'  if re.ignoreCase
+  opts += 'm'  if re.multiline
+  $regex: re.source, $options: opts
 RegExp.fromEJSON = (ejson) ->
   _.isEqual( _.keys(ejson).sort(), ['$options', '$regex'] ) && new RegExp(ejson['$regex'], ejson['$options'])
 
-Date::toEJSON = ->
-  $date: @valueOf()
+Date.toEJSON = (d) ->
+  $date: d.valueOf()
 Date.fromEJSON = (ejson) ->
   _.isEqual( _.keys(ejson), ['$date'] ) && new Date(Number(ejson['$date']))
-
 
 class BSON.DBRef
   BSON.Conversions.push(this)
@@ -63,7 +66,7 @@ class BSON.DBRef
     else if args.length
       throw("Bad agruments: " + args)
 
-  toEJSON: ->
-    $ns: @namespace, $id: @objectId.toString()
+  @toEJSON: (ref) ->
+    $ns: ref.namespace, $id: ref.objectId.toString()
   @fromEJSON: (ejson) ->
     _.isEqual( _.keys(ejson).sort(), ['$id', '$ns'] ) && new DBRef(ejson['$ns'], ejson['$id'])
