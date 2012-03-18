@@ -4,11 +4,12 @@ Bundler.require :default, :test, :development, "development_#{/darwin|linux|win3
 require 'rspec'
 require 'rack_ext'
 
+::Log = ActiveSupport::TaggedLogging.new( Logger.new( $stdout, Logger::DEBUG ) )
+
 module ChuChuGo
   def self.database
     unless @database
-      logger = ActiveSupport::BufferedLogger.new( $stdout, ActiveSupport::BufferedLogger::Severity::DEBUG )
-      @database = Mongo::Connection.from_uri('mongodb://localhost', logger: logger).db('chuchugo-test')
+      @database = Mongo::Connection.from_uri('mongodb://localhost', logger: Log).db('chuchugo-test')
     end
     @database
   end

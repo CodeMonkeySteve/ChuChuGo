@@ -14,8 +14,8 @@ class BSON.ObjectId
     else
       id = Math.floor(Math.random() * 32767)
       window.sessionStorage.setItem('BSON.ProcessID', id)  if window.sessionStorage?
+      id
   )
-  @time = Math.floor(new Date().valueOf() / 1000)
   @increment = 0
 
   constructor: (args...) ->
@@ -41,17 +41,13 @@ class BSON.ObjectId
 
     else
       @generate()
+    return this
 
   generate: ->
     @time = Math.floor(new Date().valueOf() / 1000)
-    @inc = 1
-    if @time == ObjectId.time
-      @inc = ++ObjectId.increment
-    else
-      ObjectId.time = @time
-      ObjectId.increment = @inc
     @machine = ObjectId.machineID
     @pid = ObjectId.processID
+    @inc = ObjectId.increment = (ObjectId.increment + 1) & 0xff
     this
 
   createdAt: ->
@@ -66,7 +62,6 @@ class BSON.ObjectId
       '000000'.substr(0, 6 - machine.length) + machine +
       '0000'.substr(0, 4 - pid.length) + pid +
       '000000'.substr(0, 6 - inc.length) + inc
-
 
   @toEJSON: (id) ->
     $oid: id.toString()

@@ -9,6 +9,7 @@ require 'active_support/json'
 #   * ObjectId:  done
 #   * DBRef:     done
 
+module Mongo
 module ExtJSON
   Conversions = []
 
@@ -16,6 +17,7 @@ module ExtJSON
     ejson = JSON.parse(data)
     ejson.class.from_ejson(ejson)
   end
+end
 end
 
 class Object
@@ -41,7 +43,7 @@ class Time
     (ejson.keys == %w($date)) && Time.at(ejson['$date'] / 1000.0)
   end
 
-  ExtJSON::Conversions << self
+  Mongo::ExtJSON::Conversions << self
 end
 
 class Regexp
@@ -61,7 +63,7 @@ class Regexp
     end
   end
 
-  ExtJSON::Conversions << self
+  Mongo::ExtJSON::Conversions << self
 end
 
 class BSON::ObjectId
@@ -71,7 +73,7 @@ class BSON::ObjectId
     (ejson.keys == %w($oid)) && BSON::ObjectId(ejson['$oid'])
   end
 
-  ExtJSON::Conversions << self
+  Mongo::ExtJSON::Conversions << self
 end
 
 class BSON::DBRef
@@ -88,7 +90,7 @@ class BSON::DBRef
     (ejson.keys.sort == %w($id $ns)) && BSON::DBRef.new( ejson['$ns'], BSON::ObjectId(ejson['$id']) )
   end
 
-  ExtJSON::Conversions << self
+  Mongo::ExtJSON::Conversions << self
 end
 
 class Array
@@ -112,7 +114,7 @@ class Hash
 
   def self.from_ejson(ejson)
     conv_val = nil
-    if ejson.is_a?(Hash) && ExtJSON::Conversions.any? { |conv|  conv_val = conv.from_ejson(ejson) }
+    if ejson.is_a?(Hash) && Mongo::ExtJSON::Conversions.any? { |conv|  conv_val = conv.from_ejson(ejson) }
       return conv_val
     end
 

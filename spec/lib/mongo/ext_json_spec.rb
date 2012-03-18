@@ -1,5 +1,5 @@
 require 'spec_helper'
-require 'chuchugo/conversions'
+require 'mongo/ext_json'
 
 describe "BSON to/from Extended JSON" do
   describe "#as_ejson" do

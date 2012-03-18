@@ -1,19 +1,14 @@
 source :rubygems
+gemspec
 
-gem 'activesupport', require: %w(active_support active_support/core_ext)
-gem 'i18n'
-gem 'json'
-
-gem 'faye-websocket', require: 'faye/websocket'
-gem 'rack'
-gem 'rack-fiber_pool', require: 'rack/fiber_pool'
-gem 'thin'
-
-gem 'mongo'
+#gem 'em-synchrony', require: %w(em-synchrony), git: 'https://github.com/RailsPlay/em-synchrony.git'
+gem 'rack-fiber_pool'
 gem 'bson_ext'
 
-gem 'sprockets'
-gem 'coffee-script'
+group :example do
+  gem 'haml'
+  gem 'sass'
+end
 
 group :development do
   gem 'guard'

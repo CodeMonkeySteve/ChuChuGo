@@ -8,27 +8,28 @@
     ejson = JSON.parse(data)
     ejson.constructor.fromEJSON(ejson)
 
+  generate: (val) ->
+    JSON.stringify( val.constructor.toEJSON(val) )
+
 Object.toEJSON = (obj) ->
   ejson = {}
   for key, val of obj
     unless _.isFunction(val)
-      type = val.constructor
-      ejson[key] = if _.isObject(val) && _.isFunction(type.toEJSON)  then type.toEJSON(val)  else val
+      ejson[key] = if _.isObject(val) && (type = val.constructor) && _.isFunction(type.toEJSON)  then type.toEJSON(val)  else val
   ejson
 Object.fromEJSON = (ejson) ->
   convVal = null
   if _.isObject(ejson) && _.any( BSON.Conversions, (conv) -> convVal = conv.fromEJSON(ejson) )
     return convVal
   for key, val of ejson
-    type = val.constructor
+    continue unless type = val?.constructor
     if _.isFunction(type.fromEJSON) && (convVal = type.fromEJSON(val))
       ejson[key] = convVal
   ejson
 
 Array.toEJSON = (arr) ->
   _.map arr, (val) ->
-    type = val.constructor
-    if _.isObject(val) && _.isFunction(type.toEJSON)  then type.toEJSON(val)  else val
+    if _.isObject(val) && (type = val.constructor) && _.isFunction(type.toEJSON)  then type.toEJSON(val)  else val
 Array.fromEJSON = (ejson) ->
   _.map ejson, (val) ->
     convVal = null

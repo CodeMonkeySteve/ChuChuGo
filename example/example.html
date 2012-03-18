@@ -2,28 +2,34 @@
 <html lang='en' xml:lang='en' xmlns='http://www.w3.org/1999/xhtml'>
   <head>
     <meta content='text/html; charset=utf-8' http-equiv='Content-Type'>
+    <link rel="stylesheet" href="assets/example.css" >
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.js" type="text/javascript"></script>
-    <script src="/assets/example.js" type="text/javascript"></script>
+    <script src="http://documentcloud.github.com/underscore/underscore.js" type="text/javascript"></script>
     <script src="/assets/chuchugo.js" type="text/javascript"></script>
+    <script src="/assets/example.js" type="text/javascript"></script>
 
-    <title>Chu-Chu-Go Demo</title>
+    <title>ChuChuGo Demo</title>
   </head>
 
   <body>
     <form id='query'>
-      <label for='selector'>Query:</label>
+      <label for='selector'>Observe: </label>
       <input type='text' id='selector' name='selector' size=40/>
       <input type='submit' value='Search'>
     </form>
-    <div id='results'
-      Loading ...
-    </div>
+
+    <div id='results'></div>
+
+    <form id='new'>
+      <label for='x'>New: </label>
+      <input type='text' name='x' size=40/>
+      <input type='submit' value='Add'>
+    </form>
   </body>
 
   <script type="text/javascript">
     jQuery(document).ready(function() {
       App.init('ws://localhost:3000')
     })
-
   </script>
 </html>
