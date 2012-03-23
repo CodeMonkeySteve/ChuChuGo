@@ -2,7 +2,7 @@ h1. ChuChuGo
 
 h2. Introduction
 
-
+Currently under development, check back later ...
 
 Copyright (c) 2012 Steve Sloan, Some Rights Reserved
 

@@ -1,4 +1,4 @@
-class ChuChuGo.Model
+class ChuChuGo.Model extends ChuChuGo.Events
   constructor: (attrs, opts) ->
     attrs ?= {}
     if defaults = @constructor.defaults
@@ -86,8 +86,17 @@ class ChuChuGo.Model
     return unless @_changing?.length
     for attr in @_changing
       @trigger('change:' + attr, this, @prevAttrs[attr], opts)
-    @trigger('change', this, options)
+    @trigger('change', this, attr, opts)
     delete @_changing
+
+  _update: (doc) ->
+    if doc.$set    then @set(doc.$set)
+    if doc.$unset  then @unset(_.keys(doc.$unset))
+    # $push     where: field:null, field:{$size: #}
+    # $pushAll  where: field:null, field:{$size: #}
+    # $addToSet, $each
+    # $pop      where: field:null, field:{$size: #}
+    # $pull
 
   @toEJSON: (ref) ->
     ref.id ?= new BSON.ObjectId

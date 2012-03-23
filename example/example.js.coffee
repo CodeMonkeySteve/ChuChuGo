@@ -1,19 +1,26 @@
-#// require 'backbone-0.9.1.js'
 //= require_self
 
 @App =
   init: (ws_url) ->
     @db = new ChuChuGo.Database(ws_url)
-    @db.on 'add',    (model) -> $('#results').append( App.model2html(model) )
-    @db.on 'remove', (model) -> $("#results [data-id=#{model.id.toString()}]").fadeOut()
 
     $('#query input[name=selector]').val('x: {$gt: 5}')
     $('#query').submit( (ev) ->
       query = $(ev.currentTarget).find('input[name=selector]').val()
       query = eval( "q={#{query}}" )
-      App.db.$('things').observe query
+      App.observer?.cancel()
+      App.observer = App.db.$('things').observe(query)
       false
     ).submit()
+
+    @db.on 'add',    (model) ->
+      $('#results').append( App.model2html(model) )
+    @db.on 'remove', (model) ->
+      $("#results [data-id=#{model.id.toString()}]").fadeOut()
+    @db.on 'change', (model, attr) ->
+      $("#results [data-id=#{model.id.toString()}] [name=#{attr}]")
+        .text(model.get(attr).toString())
+        .effect('highlight')
 
     $('#new').submit (ev) ->
       el = $(ev.currentTarget).find('input[name=x]')

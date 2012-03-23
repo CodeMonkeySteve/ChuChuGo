@@ -81,6 +81,11 @@ class ChuChuGo.Database extends ChuChuGo.Events
         docs = params
         @add(docs...)
 
+      when 'update'
+        [id, mod] = params
+        return  unless model = @modelsById[id]
+        model._update(mod)
+
       when 'remove'
         [id] = params
         return  unless model = @modelsById[id]
