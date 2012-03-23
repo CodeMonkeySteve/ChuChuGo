@@ -2,24 +2,13 @@ class ChuChuGo.Database extends ChuChuGo.Events
   Socket = if 'MozWebSocket' in window  then MozWebSocket  else WebSocket
 
   constructor: (url) ->
-    _.bindAll(this, '_onOpen', '_onMessage', '_onClose')
+    _.bindAll(this, '_onOpen', '_onMessage', '_onClose', '_onDBMessage')
     @ws = _.extend( new Socket(url), onopen: @_onOpen, onmessage: @_onMessage, onclose: @_onClose )
     @outBuff = []
     @outReqs = {}
     @modelsById = {}
 
   $: (name) -> new ChuChuGo.Collection(name, this)
-
-  call: (method, params...) ->
-    cb = params.pop()  if _.isFunction(params[params.length-1])
-    id = (new BSON.ObjectId()).toString()
-    req = { id: id, method: method, params: params }
-    @_send BSON.generate(req)
-    @outReqs[id] = req
-
-    req.cb = cb
-    req.cancel = => @_send( BSON.generate(id: req.id, method: null) )
-    req
 
   add: (models...) ->
     for model in models
@@ -39,6 +28,17 @@ class ChuChuGo.Database extends ChuChuGo.Events
     else
       @ws.send(msg)
 
+  _call: (method, params...) ->
+    cb = params.pop()  if _.isFunction(params[params.length-1])
+    id = (new BSON.ObjectId()).toString()
+    req = { id: id, method: method, params: params }
+    @_send BSON.generate(req)
+    @outReqs[id] = req
+
+    req.cb = cb
+    req.cancel = => @_send( BSON.generate(id: req.id, method: null) )
+    req
+
   _onMessage: (ev) ->
     msg = BSON.parse(ev.data)
     unless msg.id
@@ -55,10 +55,10 @@ class ChuChuGo.Database extends ChuChuGo.Events
       @trigger('request', msg.method, msg.params, msg.id)  
       return 
 
-    delete @outReqs[msg.id]  #unless msg.partial
+    delete @outReqs[msg.id]  unless msg.partial
     if msg.result?
-      #console.log "response (#{msg.id}): #{msg.result}"
-      req.cb?(msg.result)
+      console.log "response (#{msg.id}): #{msg.result}"
+      req.cb?.apply(this, msg.result)
     else if msg.error?
       throw "RPC Error (#{req.method}(#{req.params.join(', ')})): #{msg.error}"
 
@@ -75,13 +75,15 @@ class ChuChuGo.Database extends ChuChuGo.Events
   # _onError: (ev) ->
   #   console.log "error: #{ev.data}"
 
-  _onInsert: (docs...) ->
-    @add(docs...)
+  _onDBMessage: (op, params...) ->
+    switch op
+      when 'insert'
+        docs = params
+        @add(docs...)
 
-  _onUpdate: (id, mod) ->
-
-  _onRemove: (id) ->
-    if model = @modelsById[id]
-      delete @modelsById[id]
-      @trigger 'remove', model
-
+      when 'remove'
+        [id] = params
+        return  unless model = @modelsById[id]
+        delete @modelsById[id]
+        model.off( 'all', @_onModelEvent, this )
+        @trigger 'remove', model

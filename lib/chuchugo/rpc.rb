@@ -1,7 +1,5 @@
 require 'faye/websocket'
 
-require 'ruby-debug'
-
 module ChuChuGo
 module Websocket
 module RPC
@@ -12,39 +10,40 @@ class Endpoint
     self.exposed = ((self.exposed || []) + methods.map(&:to_sym)).uniq
   end
 
-  attr_accessor :ws
+  attr_accessor :ws, :in_req, :out_req
+
   def initialize(env)
     @ws = Faye::WebSocket.new(env, nil, ping: 10)
-    @ws.onopen, @ws.onclose, @ws.onmessage = self.method(:onOpen), self.method(:onClose), self.method(:onMessage)
+    @ws.onopen, @ws.onclose, @ws.onmessage = self.method(:on_open), self.method(:on_close), self.method(:on_message)
+    @in_reqs = {}
     @out_reqs = {}
     @exposed = []
   end
 
   def call(method, *args, &cb)
-    req = @out_reqs[id] = Request.new( self, method: method, args: args, &cb )
-    req.call
+    @out_req = @out_reqs[id] = Request.new( self, method: method, args: args, &cb )
+    @out_req.call
   end
 
   def notify( method, *args )
-#debugger
-    self.onClose(nil)  unless @ws.send( { method: method, params: args }.to_ejson )
+    self.on_close(nil)  unless @ws.send( { method: method, params: args }.to_ejson )
   end
 
-  def onNotification(method, *args)
-    raise NotImplError
+  def on_notification(method, *args)
+    raise NotImplementedError
   end
 
 protected
-  def onOpen(ev)
+  def on_open(ev)
     Log.tagged('RPC') {  Log.info "Connect: #{@ws.env['REMOTE_ADDR']}"  }
   end
 
-  def onClose(ev)
-#debugger
+  def on_close(ev)
     Log.tagged('RPC') {  Log.info "Disconnect: #{@ws.env['REMOTE_ADDR']}"  }
+    @in_reqs.each { |req|  (@in_req = req).on_cancelled }
   end
 
-  def onMessage(ev)
+  def on_message(ev)
     begin
       msg = Mongo::ExtJSON.parse(ev.data).with_indifferent_access
       method = msg[:method].to_sym
@@ -55,58 +54,100 @@ protected
       return
     end
 
-    return onNotification(method, *msg[:params])  unless (id = msg[:id].present?)
+    return on_notification(method, *msg[:params])  unless (id = msg[:id].present?)
 
-    if req = @out_reqs[id]
+    if @out_req = @out_reqs[id]
       # process response
       Log.tagged('RPC') {  Log.error "(#{id}) #{$!.message}: #{ev.data}"  }
+
       @out_reqs.delete(id)  unless msg[:partial]
-      if msg.result?
-        req.cb?(data.result)
-      elsif data.error?
-        throw "RPC Error: #{req.method}(#{req.args.join(', ')}) -> #{data.error}"
+      if msg.result
+        @out_req.cb?(data.result)
+      elsif msg.error
+        throw "RPC Error: #{@out_req.method}(#{@out_req.params.join(', ')}) -> #{data.error}"
       end
+      @out_req = nil
 
     else
        # process request
+      @in_req = Request.new(self, msg)
       Log.tagged('RPC') {  Log.debug "#{method}(#{msg[:params].join(', ')})"  }
-      resp = { id: msg[:id].to_s }
-      if exposed.include?(method)
+      res = nil
+      if exposed.include?(@in_req.method)
         begin
-          @cur_req, @cur_resp = req, resp
-          resp[:result] = self.__send__( method, *msg[:params] )
+          res = self.__send__( method, *msg[:params] )
+          @in_req.respond(res)  if !res.nil? && !@in_req.responded?
         rescue
-          resp[:error] = $!.message
-          Log.tagged('RPC') {  Log.error "#{$!.message}: #{$!.backtrace.inspect}"  }
+          Log.tagged('RPC') {  Log.error "#{$!.message}:\n#{$!.backtrace.join("\n")}"  }
+          @in_req.error $!.message
         end
       else
-        resp[:error] = "Unknown method: #{method.to_s.inspect}"
+        @in_req.error "Unknown method: #{method.to_s.inspect}"
       end
-      @ws.send resp.to_ejson
-      @cur_req = @cur_resp = nil
+      @in_req = nil
+      res
     end
   end
 end
 
 class Request
-  attr_accessor :id, :method, :args
+  attr_accessor :id, :method, :params
 
-  def initialize(client, attrs = {}, &cb)
-    @client = client
+  def initialize( endpt, attrs = {}, &cb )
+    @endpt = endpt
+    attrs = attrs.with_indifferent_access
     @id = attrs[:id] || BSON::ObjectId.new
-    @method, @args = attrs.values_at(:method, :args)
-    @result, @error = attrs.values_at(:response, :error)
+    @method = attrs[:method].to_sym
+    @params = attrs[:params]
     @cb = cb
   end
 
+  # incoming
+  def responded?()  @responded  end
+  def completed?()  @completed  end
+
+  def respond( result, opts = {} )
+    opts[:partial] = true  unless opts.include?(:partial)
+    opts[:result] = result  unless opts.include?(:result)
+    @endpt.ws.send( { id: self.id.to_s }.merge(opts).to_ejson )
+    @responded = true
+    self
+  end
+
+  def complete( result )
+    respond(result, partial: false)
+    self.finish(:@in_reqs)
+    @completed = true
+  end
+
+  def error( msg )
+    @endpt.ws.send( { id: self.id.to_s, error: msg }.to_ejson )
+  end
+
+  def on_cancelled
+    self.finish(:@in_reqs)
+  end
+
+  # outgoing
   def call
-    @client.instance_variable_get(:@ws).send( { id: self.id.to_s, method: method, args: args }.to_ejson )
+    @endpt.ws.send( { id: self.id.to_s, method: self.method, params: self.params }.to_ejson )
     self
   end
 
   def cancel
-    @client.instance_variable_get(:@ws).send( { id: self.id.to_s, method: nil }.to_ejson )
+    @endpt.ws.send( { id: self.id.to_s, method: nil }.to_ejson )
+    self.finish(:@out_reqs)
     self
+  end
+
+  def on_reply( result, complete )
+    @cb.call(result)  if @cb && result
+    self.finish(:@out_reqs)  if complete
+  end
+
+protected
+  def finish( queue )
+    @endpt.instance_variable_get(queue).delete(self)
   end
 end
 

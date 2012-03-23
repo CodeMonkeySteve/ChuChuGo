@@ -41,15 +41,13 @@ class Client < RPC::Endpoint
     coll = @server.db[coll]
 
     return nil  if @observers.include?( [spec,fields] )
-    observer = @observers[[spec,fields]] = ChuChuGo::Observer.new(self, coll, spec, fields)
-    resp = observer.fetch
+    observer = @observers[[spec,fields]] = ChuChuGo::Observer.new(self.in_req, coll, spec, fields)
+    observer.fetch!
     @server.oplog.observe observer
-    EM.next_tick { self.notify( :insert, *resp.to_a ) }
-    true
   end
 
 protected
-  def onClose(ev)
+  def on_close(ev)
     @observers.values.flatten.each { |o|  @server.oplog.ignore(o) }
     @observers.clear
     @server.clients.delete self
