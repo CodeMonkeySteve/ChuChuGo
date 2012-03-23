@@ -7,6 +7,7 @@ class ChuChuGo.Database extends ChuChuGo.Events
     @outBuff = []
     @outReqs = {}
     @modelsById = {}
+    super
 
   $: (name) -> new ChuChuGo.Collection(name, this)
 

@@ -5,28 +5,32 @@
     @db = new ChuChuGo.Database(ws_url)
 
     $('#query input[name=selector]').val('x: {$gt: 5}')
-    $('#query').submit( (ev) ->
+    $('#query').submit( (ev) =>
       query = $(ev.currentTarget).find('input[name=selector]').val()
       query = eval( "q={#{query}}" )
-      App.observer?.cancel()
-      App.observer = App.db.$('things').observe(query)
+      @observer?.cancel()
+      @observer = @db.$('things').observe(query)
+
+      @db.modelsById = {}
+      $('#results').empty()
       false
     ).submit()
 
     @db.on 'add',    (model) ->
-      $('#results').append( App.model2html(model) )
+      $(App.model2html(model)).appendTo('#results').hide().slideDown()
     @db.on 'remove', (model) ->
-      $("#results [data-id=#{model.id.toString()}]").fadeOut()
+      $("#results [data-id=#{model.id.toString()}]").slideUp()
     @db.on 'change', (model, attr) ->
       $("#results [data-id=#{model.id.toString()}] [name=#{attr}]")
         .text(model.get(attr).toString())
-        .effect('highlight')
+        .effect('highlight', 'slow')
 
     $('#new').submit (ev) ->
       el = $(ev.currentTarget).find('input[name=x]')
-      model = new ChuChuGo.Model( x: parseInt( el.val() ) )
-      App.db.$('things').insert model
-      el.val('')
+      if _.isPresent(el.val())
+        model = new ChuChuGo.Model( x: parseInt( el.val() ) )
+        App.db.$('things').insert model
+        el.val('')
       false
 
     $(document)

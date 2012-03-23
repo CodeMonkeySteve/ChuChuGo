@@ -22,7 +22,7 @@ class Client < RPC::Endpoint
     docs = [docs]  unless docs.is_a?(Array)
     rev = BSON::ObjectId.new
     #docs.each { |doc| doc['_rev'] = rev }
-    @server.db[coll].insert(docs, opts)
+    @server.db[coll].insert docs, opts
   end
 
   expose :update
@@ -39,11 +39,15 @@ class Client < RPC::Endpoint
   expose :observe
   def observe(coll, spec, fields = nil)
     coll = @server.db[coll]
-
     return nil  if @observers.include?( [spec,fields] )
     observer = @observers[[spec,fields]] = ChuChuGo::Observer.new(self.in_req, coll, spec, fields)
     observer.fetch!
-    @server.oplog.observe observer
+    oplog = @server.oplog
+    oplog.observe observer
+    @in_req.define_singleton_method :on_cancelled do
+      super()
+      oplog.ignore observer
+    end
   end
 
 protected
