@@ -39,6 +39,26 @@
         App.db.$('things').remove id
         false
 
+      .on 'click', '.model .editable[name]', (ev) ->
+        el = $(ev.currentTarget)
+        name = el.attr('name')
+        inp = $("<input type='text' name='#{name}'></input>")
+          .val( parseInt(el.text()) )
+          .change (ev) ->
+            inp = $(ev.currentTarget)
+            val = $(inp).val()
+            inp.remove()
+            el.html(val)
+
+            id = el.closest('[data-id]').attr('data-id')
+            op = { $set: {} }
+            op.$set[name] = val
+            App.db.$('things').update id, op
+            true
+        el.html(inp)
+        inp.focus()
+        false
+
   model2html: (objs...) ->
     html = ''
     for obj in objs
@@ -53,6 +73,7 @@
                 "</div>\n" +
                 "<table style='margin: 0.5em' class='model_attributes'>\n"
       for key in _.keys(obj.attributes).sort()
-        html += "<tr><td>#{key}:</td><td name='#{key}'>#{obj.attributes[key].toString()}</td></tr>\n"
+        val = obj.attributes[key] ? 'null'
+        html += "<tr><td>#{key}:</td><td name='#{key}' class='editable'>#{val.toString()}</td></tr>\n"
       html + "</table>\n" + "</div>\n"
     html

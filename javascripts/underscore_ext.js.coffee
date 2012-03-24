@@ -4,8 +4,9 @@
 _._isNumberStringRegExp = new RegExp('^[-+]?[0-9]*\.?[0-9]+$')
 
 _.mixin
-  isObject  : (obj) -> !_.isNull(obj) && (typeof(obj) == 'object')
-  isBlank   : (obj) ->
+  isPlainObject: jQuery.isPlainObject
+  isObject: (obj) -> !_.isNull(obj) && (typeof(obj) == 'object')
+  isBlank : (obj) ->
     return true  if !obj? || (obj == false)
     return false  if (obj == true) || _.isNumber(obj) || (obj instanceof Date)
     return obj.isBlank()  if _.isFunction(obj.isBlank)

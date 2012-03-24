@@ -44,7 +44,7 @@ class ChuChuGo.Database extends ChuChuGo.Events
     msg = BSON.parse(ev.data)
     unless msg.id
       handler = '_on'+msg.method[0].toUpperCase()+msg.method.substr(1)
-      console.log "rpc: #{msg.method}(#{msg.params.join(', ')})"
+      console.log "rpc: #{msg.method}(#{inspect(msg.params, braces: false)})"
       if _.isFunction(this[handler])
         this[handler].apply(this, msg.params ? [])
       else
@@ -52,16 +52,16 @@ class ChuChuGo.Database extends ChuChuGo.Events
       return
 
     unless req = @outReqs[msg.id]
-      console.log "request (#{msg.id}): #{msg.method}(#{msg.params.join(', ')})"
-      @trigger('request', msg.method, msg.params, msg.id)  
+      console.log "request (#{msg.id}): #{msg.method}(#{inspect(msg.params, braces: false)})"
+      @trigger('request', msg.method, msg.params, msg.id)
       return 
 
     delete @outReqs[msg.id]  unless msg.partial
     if msg.result?
-      console.log "response (#{msg.id}): #{msg.result}"
+      console.log "[#{req.id}] #{req.method}(#{inspect(req.params, braces: false)}) =>\n  #{inspect(msg.result, braces: false)}"
       req.cb?.apply(this, msg.result)
     else if msg.error?
-      throw "RPC Error (#{req.method}(#{req.params.join(', ')})): #{msg.error}"
+      throw "RPC Error (#{req.method}(#{inspect(msg.result, braces: false)})): #{msg.error}"
 
   _onOpen: ->
     #console.log "open"
@@ -70,7 +70,7 @@ class ChuChuGo.Database extends ChuChuGo.Events
       delete @outBuff
 
   _onClose: ->
-    console.log "WEBSOCKET CLOSED"
+    console.log "DISCONNECTED"
     delete @outReqs
 
   # _onError: (ev) ->

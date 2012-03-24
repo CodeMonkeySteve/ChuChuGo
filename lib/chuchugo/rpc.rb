@@ -40,7 +40,7 @@ protected
 
   def on_close(ev)
     Log.tagged('RPC') {  Log.info "Disconnect: #{@ws.env['REMOTE_ADDR']}"  }
-    @in_reqs.each { |req|  req.on_cancelled }
+    @in_reqs.values.each { |req|  req.on_cancelled }
   end
 
   def on_message(ev)
@@ -68,19 +68,19 @@ protected
       @out_req = nil
 
     elsif (@in_req = req = @in_reqs[id]) && method.nil?
-      Log.tagged('RPC') {  Log.debug "cancel (#{id}): #{req.method}(#{(req.params || []).join(', ')})"  }
+      Log.tagged('RPC') {  Log.debug "#{id}: #{req.method}(#{(req.params || []).join(', ')}) cancel"  }
       req.on_cancelled()
       @in_req = nil
 
     else
       @in_reqs[id] = @in_req = req = Request.new(self, msg)
-      Log.tagged('RPC') {  Log.debug "call (#{id}): #{req.method}(#{(req.params || []).join(', ')})"  }
+      Log.tagged('RPC') {  Log.debug "#{id}: #{req.method}(#{(req.params || []).join(', ')})"  }
 
       res = nil
       if exposed.include?(req.method)
         begin
           res = self.__send__( method, *msg[:params] )
-          req.respond(res)  if !res.nil? && !req.responded?
+          req.respond(res)  unless req.responded?
         rescue
           Log.tagged('RPC') {  Log.error "#{$!.message}:\n#{$!.backtrace.join("\n")}"  }
           req.error $!.message

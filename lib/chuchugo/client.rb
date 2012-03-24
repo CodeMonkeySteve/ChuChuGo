@@ -28,11 +28,15 @@ class Client < RPC::Endpoint
   expose :update
   def update(coll, selector, doc, opts = {})
     #doc['_rev'] = BSON::ObjectId.new
+    selector = BSON::ObjectId(selector)  if selector.is_a?(String)
+    selector = { _id: selector }         if selector.is_a?(BSON::ObjectId)
     @server.db[coll].update selector, doc, opts
   end
 
   expose :remove
   def remove(coll, selector, opts = {})
+    selector = BSON::ObjectId(selector)  if selector.is_a?(String)
+    selector = { _id: selector }         if selector.is_a?(BSON::ObjectId)
     @server.db[coll].remove selector, opts
   end
 
@@ -41,13 +45,14 @@ class Client < RPC::Endpoint
     coll = @server.db[coll]
     return nil  if @observers.include?( [spec,fields] )
     observer = @observers[[spec,fields]] = ChuChuGo::Observer.new(self.in_req, coll, spec, fields)
-    observer.fetch!
+    res = observer.fetch!
     oplog = @server.oplog
     oplog.observe observer
-    @in_req.define_singleton_method :on_cancelled do
+    in_req.define_singleton_method :on_cancelled do
       super()
       oplog.ignore observer
     end
+    in_req.respond([ :insert, *res.to_a ])
   end
 
 protected

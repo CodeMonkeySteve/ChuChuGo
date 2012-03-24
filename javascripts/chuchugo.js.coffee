@@ -20,3 +20,19 @@ String::copy = (n) ->
   str = ''
   str += this  while n-- > 0
   str
+
+@inspect = (obj, opts = {}) ->
+  if obj == undefined
+    'undefined'
+  else if obj == null
+    'null'
+  else if _.isPlainObject(obj)
+    res = ("#{inspect(k)}: #{inspect(v)}" for k, v of obj).join(', ')
+    if (opts.braces != false)  then "{#{res}}"  else res
+  else if _.isArray(obj)
+    res = (inspect(el)  for el in obj).join(', ')
+    if (opts.braces != false)  then "[#{res}]"  else res
+  else if _.isFunction(obj.toString)
+    obj.toString()
+  else
+    JSON.stringify(obj)

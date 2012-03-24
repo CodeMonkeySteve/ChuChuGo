@@ -72,7 +72,8 @@ class OpLog
 
         when 'u'
           observers.each do |o|
-            raise "Unknown update spec: #{entry['o2']}"  unless entry['o2'].keys == %w(_id)
+            Log.tagged('OpLog') {  Log.warn "Unknown update spec: #{entry['o2']}" }  unless entry['o2'].keys == %w(_id)
+            raise "Missing id: #{entry['o2']}"  unless entry['o2']['_id'].present?
             o.on_update( entry['o2']['_id'], entry['o'] )
           end
 

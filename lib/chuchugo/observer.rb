@@ -20,7 +20,6 @@ class Observer < Mongo::OpLog::Observer
     resp = collection.find(@selector.spec, opts).to_a
     @doc_ids = Set.new resp.map { |doc|  doc['_id'] }
 Log.tagged('Observer') {  Log.debug "ids: #{@doc_ids.to_a.map(&:to_s).join(', ')}"  }
-    @req.respond([ :insert, *resp.to_a ])
     resp
   end
 
