@@ -27,11 +27,11 @@ Log.tagged('Observer') {  Log.debug "ids: #{@doc_ids.to_a.map(&:to_s).join(', ')
     Log.tagged('Observer') {  Log.debug "insert (#{@collection.name}): #{doc}"  }
     raise "Missing ID in #{doc.inspect}"  unless (id = doc['_id'])
 
-    # TODO: filter
-    @doc_ids.add(id)
-
+    if @selector.match?(doc)
+      @doc_ids.add(id)
 Log.tagged('Observer') {  Log.debug "ids: #{@doc_ids.to_a.map(&:to_s).join(', ')}"  }
-    @req.respond([ :insert, doc ])
+      @req.respond([ :insert, doc ])
+    end
   end
 
   def on_update( id, mod )
@@ -44,10 +44,12 @@ Log.tagged('Observer') {  Log.debug "ids: #{@doc_ids.to_a.map(&:to_s).join(', ')
   end
 
   def on_remove( id )
-    Log.tagged('Observer') {  Log.debug "remove (#{@collection.name} #{id})"  }
-    @req.respond([ :remove, id ])
-    @doc_ids.delete(id)
+    if @doc_ids.include?(id)
+      Log.tagged('Observer') {  Log.debug "remove (#{@collection.name} #{id})"  }
+      @req.respond([ :remove, id ])
+      @doc_ids.delete(id)
 Log.tagged('Observer') {  Log.debug "ids: #{@doc_ids.to_a.map(&:to_s).join(', ')}"  }
+    end
   end
 end
 

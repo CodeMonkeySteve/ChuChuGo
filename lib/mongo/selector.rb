@@ -56,7 +56,12 @@ protected
         ["#{val_s} == #{spec.inspect}"]
       end
     end
-    (exprs.size == 1) ? exprs.first : exprs.map { |ex|  "(#{ex})" }.join(' && ')
+
+    case exprs.size
+      when 0  then 'true'
+      when 1  then exprs.first
+      else    exprs.map { |ex|  "(#{ex})" }.join(' && ')
+    end
   end
 
   def ops_to_expr_s( val_s, ops )
